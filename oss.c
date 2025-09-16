@@ -1,20 +1,9 @@
-
-//accept four command line arguments
-//-h output help message, then terminate
-//-n proc → Total number of children to launch.
-//-s simul → Maximum number of children allowed to run simultaneously.
-//-t iter → A number that will be passed as an argument to the user processes 
-//(they will use it for their iterations).
-
-
-
-
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <getopt.h>
 
 int main(int argc, char *argv[]){
 
@@ -41,10 +30,8 @@ int main(int argc, char *argv[]){
         }
     }
 
-
     int children_launched = 0; 
     int children_running = 0;
-
 
     //while children launched is less than n keep launching more
     while(children_launched < n){   
@@ -56,8 +43,13 @@ int main(int argc, char *argv[]){
 
             //if its a child- run user.c
             if(pid == 0){
-                execl("./user", "user",  NULL);
-                
+                char iter_arg[10];
+                snprintf(iter_arg, sizeof(iter_arg), "%d", t);
+                execl("./user", "user", iter_arg, (char *)NULL);
+
+                // if execl fails
+                perror("execl failed");
+                exit(1);
             }
 
             //keep track of children
@@ -66,15 +58,22 @@ int main(int argc, char *argv[]){
                 children_launched++;
                 children_running++;
             }
-            
-
+        }
+        //make sure children <= s
+        if (children_running >= s) {
+            wait(NULL);
+            children_running--;
         }
 
     }
 
-    //Wait until all children launched have been terminated
-    printf("All children terminated. Total number launched: %d", n);
+    while (children_running > 0) {
+        wait(NULL);
+        children_running--;
+    }
 
+    //Wait until all children launched have been terminated
+    printf("All of the children are now terminated. Total number launched = %d", n);
 
     return 0;
 }
